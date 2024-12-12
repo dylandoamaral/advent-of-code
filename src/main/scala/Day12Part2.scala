@@ -86,32 +86,4 @@ object Day12Part2 {
       if (!bottomNotMatch && !rightNotMatch && bottomRightNotMatch) 1 else 0,
     ).sum
   }
-
-  def calculateSideOld(x: Int, y: Int, plots: Array[Array[Char]], size: Int): Int = {
-    val plot = plots(x)(y)
-
-    val answer = List(
-      if (y - 1 >= 0 && plots(x)(y - 1) == plot) 0
-      else if (x - 1 == -1) 1
-      else if (plots(x - 1)(y) != plot) 1
-      else 0,
-
-      if (x - 1 >= 0 && plots(x - 1)(y) == plot) 0
-      else if (y - 1 == -1) 1
-      else if (plots(x)(y - 1) != plot) 1
-      else 0,
-
-      if (y - 1 >= 0 && plots(x)(y - 1) == plot) 0
-      else if (x + 1 == size) 1
-      else if (plots(x + 1)(y) != plot) 1
-      else 0,
-
-      if (x - 1 >= 0 && plots(x - 1)(y) == plot) 0
-      else if (y + 1 == size) 1
-      else if (plots(x)(y + 1) != plot) 1
-      else 0
-    ).sum
-
-    answer
-  }
 }
