@@ -1,9 +1,9 @@
 import scala.io.Source
 import scala.util.Using
 
-object Day1Part1 {
+object Day01Part1 {
   def main(args: Array[String]): Unit = {
-    val input = Using(Source.fromResource("Day1.txt"))(_.getLines().toList).get
+    val input = Using(Source.fromResource("Day01.txt"))(_.getLines().toList).get
 
     val locations = input.collect { case s"$left   $right" => (left.toInt, right.toInt) }
     val leftLocations = locations.map(_._1).sorted

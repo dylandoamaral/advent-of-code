@@ -2,9 +2,9 @@ import scala.io.Source
 import scala.util.Using
 import scala.util.matching.Regex
 
-object Day4Part2 {
+object Day04Part2 {
   def main(args: Array[String]): Unit = {
-    val input = Using(Source.fromResource("Day4.txt"))(_.getLines().toList).get
+    val input = Using(Source.fromResource("Day04.txt"))(_.getLines().toList).get
     val pattern: Regex = """XMAS""".r
 
     val letters = input.toArray.map(_.toCharArray)

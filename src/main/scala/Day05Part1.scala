@@ -3,9 +3,9 @@ import scala.io.Source
 import scala.util.Using
 import scala.util.matching.Regex
 
-object Day5Part1 {
+object Day05Part1 {
   def main(args: Array[String]): Unit = {
-    val input = Using(Source.fromResource("Day5.txt"))(_.getLines().toList).get
+    val input = Using(Source.fromResource("Day05.txt"))(_.getLines().toList).get
     val (rawRules, rawUpdates) = input.splitAt(input.indexOf(""))
 
     val rules = rawRules.collect { case s"$beforePage|$afterPage" => (beforePage.toInt, afterPage.toInt) }.groupBy(_._1).view.mapValues(_.map(_._2)).toMap

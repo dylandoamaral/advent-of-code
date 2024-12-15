@@ -1,9 +1,9 @@
 import scala.io.Source
 import scala.util.Using
 
-object Day8Part1 {
+object Day08Part1 {
   def main(args: Array[String]): Unit = {
-    val input = Using(Source.fromResource("Day8.txt"))(_.getLines().toList).get
+    val input = Using(Source.fromResource("Day08.txt"))(_.getLines().toList).get
 
     val grid = input.zipWithIndex.flatMap {
       case (line, y) => line.zipWithIndex.map { case (character, x) => (x, y, character) }

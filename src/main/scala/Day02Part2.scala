@@ -1,9 +1,9 @@
 import scala.io.Source
 import scala.util.Using
 
-object Day2Part2 {
+object Day02Part2 {
   def main(args: Array[String]): Unit = {
-    val input = Using(Source.fromResource("Day2.txt"))(_.getLines().toList).get
+    val input = Using(Source.fromResource("Day02.txt"))(_.getLines().toList).get
 
     val answer = input.map(_.split(" ").map(_.toInt)).count(isSafe(_))
 

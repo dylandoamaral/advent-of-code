@@ -1,9 +1,9 @@
 import scala.io.Source
 import scala.util.Using
 
-object Day9Part1 {
+object Day09Part1 {
   def main(args: Array[String]): Unit = {
-    val input = Using(Source.fromResource("Day9.txt"))(_.getLines().toList).get
+    val input = Using(Source.fromResource("Day09.txt"))(_.getLines().toList).get
     val diskMap = input.head.map(_.toString.toInt).toList
     val fileIds =
       diskMap

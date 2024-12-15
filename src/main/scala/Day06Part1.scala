@@ -1,11 +1,11 @@
-import Day6Part2.Case.Guard
+import Day06Part1.Case.Guard
 
 import scala.annotation.tailrec
 import scala.io.Source
 import scala.reflect.ClassTag
 import scala.util.Using
 
-object Day6Part2 {
+object Day06Part1 {
   enum Direction {
     case Top
     case Bottom
@@ -46,19 +46,22 @@ object Day6Part2 {
 
   implicit class arrayOfArrayOps[A: ClassTag](array: Array[Array[A]]) {
     def update(x: Int, y: Int, newValue: A): Array[Array[A]] = {
-      val updatedArray = array.clone()
-      updatedArray(x) = updatedArray(x).updated(y, newValue)
-      updatedArray
+      array.zipWithIndex.map { case (row, rowIndex) =>
+        if (rowIndex == x)
+          row.zipWithIndex.map { case (value, colIndex) =>
+            if (colIndex == y) newValue else value
+          }
+        else row
+      }
     }
   }
 
-  case class Board(data: Array[Array[Case]], guardState: (Int, Int, Guard), visitedCases: Set[(Int, Int, Direction)] = Set.empty) {
+  case class Board(data: Array[Array[Case]], visitedCases: Set[(Int, Int)] = Set.empty) {
     @tailrec
-    final def move(): (Board, Boolean) = {
-      val (x, y, guard) = guardState
+    final def move(): Board = {
+      val (x, y, guard) = findGuardPosition()
 
-      if (isGuardReachedBorder((x, y))) (this, false)
-      else if (visitedCases.contains((x, y, guard.direction))) (this, true)
+      if (isGuardReachedBorder((x, y))) this
       else {
         val (dx, dy) = guard.direction match {
           case Direction.Top => (0, 1)
@@ -71,19 +74,19 @@ object Day6Part2 {
         val newY = y + dx
 
         if (data(newX)(newY).isCrate) {
-          val newGuard: Guard = guard.copy(direction = guard.direction.turn())
-          copy(
-            data = data.update(x, y, newGuard),
-            guardState = (x, y, newGuard)
-          ).move()
+          copy(data = data.update(x, y, guard.copy(direction = guard.direction.turn()))).move()
         } else {
-          copy(
-            data = data.update(x, y, Case.Path).update(newX, newY, guard),
-            guardState = (newX, newY, guard),
-            visitedCases = visitedCases + ((x, y, guard.direction))
-          ).move()
+          copy(data = data.update(x, y, Case.Path).update(newX, newY, guard), visitedCases = visitedCases + ((x, y))).move()
         }
       }
+    }
+
+
+    def findGuardPosition(): (Int, Int, Case.Guard) = {
+      data.head.indices
+        .flatMap(x => data.indices.map(y => (x, y, data(x)(y))))
+        .collectFirst { case (x, y, guard: Case.Guard) => (x, y, guard) }
+        .getOrElse(throw new Exception("Can't find guard"))
     }
 
     def isGuardReachedBorder(guardPosition: (Int, Int)): Boolean = {
@@ -93,20 +96,12 @@ object Day6Part2 {
         || guardPosition._2 == data.length - 1
     }
 
-    def generateObstacleBoards(): List[Board] = {
-      data.head.indices
-        .flatMap(x => data.indices.map(y => (x, y, data(x)(y))))
-        .collect { case (x, y, Case.Path) => (x, y) }
-        .toList
-        .map { case (x, y) => this.copy(data = data.update(x, y, Case.Crate))}
-    }
-
     def show(): Unit = data.foreach(a => println(a.map(a => a.toRaw).mkString))
   }
 
   object Board {
-    def fromLines(lines: List[String]): Board = {
-      val data = lines.toArray.map(line =>
+    def fromLines(lines: List[String]): Board = Board(
+      lines.toArray.map(line =>
         line.collect {
           case '#' => Case.Crate
           case '.' => Case.Path
@@ -116,24 +111,15 @@ object Day6Part2 {
           case '<' => Case.Guard(Direction.Left)
         }.toArray
       )
-
-      def findGuardPosition(data: Array[Array[Case]]): (Int, Int, Case.Guard) = {
-        data.head.indices
-          .flatMap(x => data.indices.map(y => (x, y, data(x)(y))))
-          .collectFirst { case (x, y, guard: Case.Guard) => (x, y, guard) }
-          .getOrElse(throw new Exception("Can't find guard"))
-      }
-
-      Board(data, findGuardPosition(data))
-    }
+    )
   }
 
 
   def main(args: Array[String]): Unit = {
-    val input = Using(Source.fromResource("Day6.txt"))(_.getLines().toList).get
+    val input = Using(Source.fromResource("Day06.txt"))(_.getLines().toList).get
     val board = Board.fromLines(input)
 
-    val answer = board.generateObstacleBoards().map(_.move()).count(_._2)
+    val answer = board.move().visitedCases.size + 1
 
     print(answer)
   }
