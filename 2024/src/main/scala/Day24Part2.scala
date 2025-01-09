@@ -1,4 +1,3 @@
-import scala.collection.mutable
 import scala.io.Source
 import scala.util.Using
 
@@ -9,66 +8,54 @@ object Day24Part2 {
     val (rawValues, rawDoors) = input.splitAt(input.indexOf(""))
     val values = rawValues.collect { case s"$id: $value" => (id, value == "1") }.toMap
     val doors = rawDoors.collect { case s"$left $op $right -> $result" => Door(left, right, Operation.parse(op), result) }
+    val mapping = doors.groupBy(_.result).view.mapValues(_.head).toMap
 
-    val xNumber = numberOf("x", values)
-    val yNumber = numberOf("y", values)
-    val expectedZNumber = xNumber & yNumber
+    val result = doors
+      .filter(_.result.startsWith("z"))
+      .map(_.result)
+      .map(z => bitIsOk(z, mapping))
+      .collect { case Left(errors) => errors }
+      .reduce(_ ++ _)
+      .toList
+      .sorted
+      .mkString(",")
 
-    val allValues = findAllValues(values, doors)
-    val receivedZNumber = numberOf("z", allValues)
-
-    val expectedZBits = longToBooleans(expectedZNumber)
-    val receivedZBitsRaw = longToBooleans(receivedZNumber)
-    val receivedZBits = List.fill(expectedZBits.length - receivedZBitsRaw.length)(false) ++ receivedZBitsRaw
-
-    println(xNumber)
-    println(yNumber)
-    println(expectedZNumber)
-    println(receivedZNumber)
-    println(expectedZBits)
-    println(receivedZBits)
+    println(result)
   }
 
-  def numberOf(letter: String, values: Map[String, Boolean]): Long =
-    booleansToLong(values.toList.filter(_._1.startsWith(letter)).sortBy(_._1).map(_._2))
+  def bitIsOk(z: String, mapping: Map[String, Door]): Either[Set[String], Unit] = {
+    if (z == "z00" || z == "z01" || z == "z45") Right(())
+    else {
+      val door = mapping(z)
 
-  def booleansToLong(booleans: List[Boolean], acc: Long = 0L, index: Int = 0): Long =
-    booleans match
-      case head :: next =>
-        if (head) booleansToLong(booleans = next, acc = acc + (1L << index), index = index + 1)
-        else booleansToLong(booleans = next, acc = acc, index = index + 1)
-      case Nil => acc
+      if (!mapping.contains(door.left)) Left(Set(z))
+      else {
+        val childDoor = if (mapping(door.left).operands.contains(z.replace("z", "x"))) mapping(door.left) else mapping(door.right)
+        val otherDoor = if (mapping(door.left).operands.contains(z.replace("z", "x"))) mapping(door.right) else mapping(door.left)
 
-  def longToBooleans(long: Long, acc: List[Boolean] = List.empty, index: Int = 0): List[Boolean] =
-    if (long == 0 && index > 0) acc
-    else if ((long & (1L << index)) != 0) longToBooleans(long - (1L << index), true +: acc, index + 1)
-    else longToBooleans(long, false +: acc, index + 1)
+        val otherChildDoor =
+          if (mapping(otherDoor.left).operands.contains(z.replace("z", "x"))) mapping(otherDoor.left) else mapping(otherDoor.right)
+        val otherOtherDoor =
+          if (mapping(otherDoor.left).operands.contains(z.replace("z", "x"))) mapping(otherDoor.right) else mapping(otherDoor.left)
 
-  def findAllValues(values: Map[String, Boolean], doors: List[Door]): Map[String, Boolean] = {
-    var unvisitedDoors = mutable.ListBuffer(doors: _*)
-    val allValues = mutable.Map[String, Boolean](values.toList: _*)
+        val error1 = if (mapping(z).operation == Operation.XOR) Set.empty else Set(mapping(z).result)
+        val error2 = if (childDoor.operation == Operation.XOR) Set.empty else Set(childDoor.result)
+        val error3 = if (otherDoor.operation == Operation.OR) Set.empty else Set(otherDoor.result)
+        val error4 = if (otherChildDoor.operation == Operation.AND || error3.nonEmpty) Set.empty else Set(otherChildDoor.result)
+        val error5 = if (otherOtherDoor.operation == Operation.AND || error3.nonEmpty) Set.empty else Set(otherOtherDoor.result)
 
-    while (unvisitedDoors.exists(_.result.startsWith("z"))) {
-      val newUnvisitedDoors = mutable.ListBuffer.empty[Door]
+        val errors = error1 ++ error2 ++ error3 ++ error4 ++ error5
 
-      for (unvisitedDoor <- unvisitedDoors) {
-        val maybeResult = for {
-          left <- allValues.get(unvisitedDoor.left)
-          right <- allValues.get(unvisitedDoor.right)
-        } yield unvisitedDoor.operation(left, right)
-
-        maybeResult match
-          case Some(result) => allValues(unvisitedDoor.result) = result
-          case None         => newUnvisitedDoors += unvisitedDoor
+        if (errors.isEmpty) Right(())
+        else if (error1.nonEmpty) Left(error1)
+        else Left(errors)
       }
-
-      unvisitedDoors = newUnvisitedDoors
     }
-
-    allValues.toMap
   }
 
-  case class Door(left: String, right: String, operation: Operation, result: String)
+  case class Door(left: String, right: String, operation: Operation, result: String) {
+    def operands: List[String] = List(left, right)
+  }
 
   enum Operation {
     case AND
@@ -86,5 +73,11 @@ object Day24Part2 {
       case "AND" => Operation.AND
       case "XOR" => Operation.XOR
       case _     => Operation.OR
+
+    implicit val ordering: Ordering[Operation] = Ordering[Int].on {
+      case Operation.AND => 0
+      case Operation.XOR => 1
+      case Operation.OR  => 2
+    }
   }
 }
