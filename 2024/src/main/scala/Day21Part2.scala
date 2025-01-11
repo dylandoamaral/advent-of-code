@@ -4,56 +4,62 @@ import scala.io.Source
 import scala.util.Using
 
 object Day21Part2 {
-  val computations: mutable.Map[((Int, Int), (Int, Int)), Set[List[Command]]] = mutable.Map.empty
+  // Directional Index / From command / To command => Shortest path length
+  val computations: mutable.Map[(Int, Command, Command), Long] = mutable.Map.empty
+  val computations2: mutable.Map[((Int, Int), (Int, Int)), Set[List[Command]]] = mutable.Map.empty
 
   def main(args: Array[String]): Unit = {
     val codes = Using(Source.fromResource("Day21.txt"))(_.getLines().toList).get
-
-    val startState = State(NumericKeypad(), List.fill(2)(DirectionalKeypad()))
-    val (answer, _) = codes.foldLeft((0, startState)) { case ((result, accState), code) =>
-      val numericPart = code.dropRight(1).toInt
-      val (shortestPathLength, newState) = shortestPathLengthOf(code, accState)
-
-      (result + shortestPathLength * numericPart, newState.reset())
-    }
+    val answer = codes.map(code => code.dropRight(1).toInt * shortestPathLengthOf(code)).sum
 
     print(answer)
   }
 
-  case class State(numericKeypad: NumericKeypad, directionalKeypads: List[DirectionalKeypad]) {
-    def reset(): State =
-      State(
-        numericKeypad.copy(currentPosition = NumericKeypad.A),
-        directionalKeypads.map(_.copy(currentPosition = DirectionalKeypad.A))
-      )
+  def shortestPathLengthOf(code: String): Long =
+    code
+      .foldLeft((0L, 'A')) { case ((result, previousCharacter), targetCharacter) =>
+        (result + shortestPathLengthBetween(previousCharacter, targetCharacter), targetCharacter)
+      }
+      ._1
+
+  def shortestPathLengthBetween(previousCharacter: Char, targetCharacter: Char): Long = {
+    val numericKeypad = NumericKeypad().copy(currentPosition = NumericKeypad.fromCharacter(previousCharacter))
+    val numericTargetPosition = NumericKeypad.fromCharacter(targetCharacter)
+    val numericPossibilities = numericKeypad.goTo(numericTargetPosition)
+
+    shortestPathLengthOfCharForDirectionalsAll(numericPossibilities, 0)
   }
 
-  def shortestPathLengthOf(code: String, state: State): (Int, State) =
-    code.foldLeft((0, state)) { case ((result, accState), char) =>
-      val (shortestPathLength, newState) = shortestPathLengthOfChar(char, accState)
-      (result + shortestPathLength, newState)
+  def shortestPathLengthOfCharForDirectionalsAll(possibilities: Set[List[Command]], currentDirectionalIndex: Int): Long =
+    possibilities.map(possibility => shortestPathLengthOfCharForDirectionals(possibility, currentDirectionalIndex)).min
+
+  def shortestPathLengthOfCharForDirectionals(possibility: List[Command], currentDirectionalIndex: Int): Long =
+    possibility
+      .foldLeft((0L, Command.A)) { case ((result, previousCommand), targetCommand) =>
+        (result + shortestPathLengthOfCharForDirectional(previousCommand, targetCommand, currentDirectionalIndex), targetCommand)
+      }
+      ._1
+
+  def shortestPathLengthOfCharForDirectional(
+      previousCommand: Command,
+      targetCommand: Command,
+      currentDirectionalIndex: Int
+  ): Long =
+    if (currentDirectionalIndex == 25) 1L
+    else {
+      computations.get((currentDirectionalIndex, previousCommand, targetCommand)) match
+        case Some(value) => value
+        case None =>
+          val directionalKeypad = DirectionalKeypad().copy(currentPosition = DirectionalKeypad.fromCommand(previousCommand))
+          val value = shortestPathLengthOfCharForDirectionalsAll(
+            directionalKeypad.goTo(DirectionalKeypad.fromCommand(targetCommand)),
+            currentDirectionalIndex + 1
+          )
+
+          computations((currentDirectionalIndex, previousCommand, targetCommand)) = value
+
+          value
     }
-
-  def shortestPathLengthOfChar(char: Character, state: State): (Int, State) = {
-    val numericTargetPosition = NumericKeypad.fromCharacter(char)
-    val numericPossibilities = state.numericKeypad.goTo(numericTargetPosition)
-    val (answer, updatedDirectionalKeypads) = shortestPathLengthOfCharForDirectionals(
-      numericPossibilities,
-      state.directionalKeypads,
-      List.empty
-    )
-
-    (answer, State(state.numericKeypad.copy(currentPosition = numericTargetPosition), updatedDirectionalKeypads))
-  }
-
-  def shortestPathLengthOfCharForDirectionals(
-      possibilities: Set[List[Command]],
-      directionalKeypads: List[DirectionalKeypad],
-      directionalKeypadsDone: List[DirectionalKeypad]
-  ): (Int, List[DirectionalKeypad]) =
-    directionalKeypads match
-      case head :: next => ???
-      case Nil          => ???
 
   object Command {
     def findDirection(fromPosition: (Int, Int), toPosition: (Int, Int)) = {
@@ -159,20 +165,18 @@ object Day21Part2 {
   case class DirectionalKeypad(currentPosition: (Int, Int) = DirectionalKeypad.A) {
     import DirectionalKeypad.*
 
-    val memoization: mutable.Map[((Int, Int), (Int, Int)), Int] = mutable.Map.empty
-
     def shortestPathLength(from: (Int, Int), to: (Int, Int)): Int = ???
 
     def goTo(targetPosition: (Int, Int)): Set[List[Command]] = {
       val key = (currentPosition, targetPosition)
 
-      computations.get(key) match
+      computations2.get(key) match
         case Some(value) => value
         case None =>
           val commands = prunePossibilities(goToRec(currentPosition, targetPosition, Set.empty))
           val result = if (commands.isEmpty) Set(List(Command.A)) else commands.map(_ :+ Command.A)
 
-          computations(key) = result
+          computations2(key) = result
 
           result
     }
